@@ -5,7 +5,7 @@ import csv
 import random as rd
 import copy
 
-ville="nice"
+ville="grenoble"
 
 #Fonction qui plot une suite numérique
 def graph(liste):
@@ -13,7 +13,7 @@ def graph(liste):
 
 #fonction qui parse le nombre de lignes du fichier txt
 def row_count_func(ville):
-    with open(ville+"\\distances.csv") as csv_file:
+    with open("/home/adrien/KIRO/"+ville+"/distances.csv") as csv_file:
         csv_reader = csv.reader(csv_file)
         row_count = sum(1 for row in csv_reader)
     csv_file.close()
@@ -21,7 +21,7 @@ def row_count_func(ville):
 
 #fonction qui renvoie la matrice des distances entre la ville i et la ville j
 def parse_dist(ville):
-    with open(ville+"\\distances.csv") as csv_file:
+    with open("/home/adrien/KIRO/"+ville+"/distances.csv") as csv_file:
         csv_reader = csv.reader(csv_file)
         row_count=row_count_func(ville)
         nb_nodes=int(sqrt(row_count))
@@ -37,7 +37,7 @@ def parse_dist(ville):
 def parse_nodes(ville):
     nodes=[]
     distribution=[]
-    with open(ville+"\\nodes.csv") as csv_file:
+    with open("/home/adrien/KIRO/"+ville+"/nodes.csv") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=';')
         for row in csv_reader:
             nodes+=[[row[0],row[1]]]
@@ -69,7 +69,7 @@ nodes, distribution=parse_nodes(ville)
 
 #Fonction qui construit le fichier result sous la forme demandée
 def result(ville,reseaux):
-    file = open(ville+"\\result.txt","w")
+    file = open("/home/adrien/KIRO/"+ville+"/result.txt","w")
     for reseau in reseaux:
         file.write('b')
         reseau_str=""
@@ -128,14 +128,14 @@ def evolve(reseaux,node):
         for i in range(len(temp_reseaux[i_r])):
             current_chain=temp_reseaux[i_r][i][:]
             if len(temp_reseaux[i_r][i])<=5:
-                for j in range(len(temp_reseaux[i_r][i])):
-                    current_chain=current_chain[:j+1]+[node]+current_chain[j+1:]
+                for j in range(distribution[temp_reseaux[i_r][i][0]],len(temp_reseaux[i_r][i])+1):
+                    current_chain=current_chain[:j]+[node]+current_chain[j:]
                     temp_reseaux[i_r][i]=current_chain[:]
                     C=cost(temp_reseaux)
                     if C<minC and valid_reseaux(temp_reseaux):
                         minC=C
                         optimal_reseaux=copy.deepcopy(temp_reseaux)
-                    temp_reseaux=copy.deepcopy(reseaux)
+                temp_reseaux=copy.deepcopy(reseaux)
         
         #On essaie de le mettre dans une boucle d'un reseau en tête d'une
         #éventuelle future chaîne
@@ -186,30 +186,43 @@ def plot_city(reseaux):
             Y.append(y[0])
         plt.plot(X+[X[0]],Y+[Y[0]],c="b")
     plt.show()
-        
+
+def is_equal(L1,L2):
+    if len(L1)!=len(L2):
+        return(False)
+    is_equal=True
+    c=0
+    while is_equal and c<len(L1):
+        is_equal=(L1[c]==L2[c]) 
+        c+=1
+    return(is_equal)
+    
 def find(reseaux_ini):
     reseaux=copy.deepcopy(reseaux_ini)
+   
     #on crée le premier réseau sous-optimal
+   
     for node in range(sum(distribution),nb_nodes):
-        
         reseaux=evolve(reseaux,node)
-    plot_city(reseaux)
-    for i in range(15):
-        for node in range(sum(distribution),nb_nodes):
+    
+    for i in range(1000):
+        for node in np.random.permutation([i for i in range(sum(distribution),nb_nodes)]):
             delete(reseaux, node)
             reseaux=evolve(reseaux,node)
             result(ville,reseaux)
-        plot_city(reseaux)
-    stationary=0
-    while stationary<1:
-        node=rd.randint(sum(distribution),nb_nodes-1)
-        delete(reseaux, node)
-        next_reseaux=evolve(reseaux,node)
-        stationary+=0.2*(1-2*(np.array(reseaux).all()==np.array(next_reseaux).all()))
-        reseaux=copy.deepcopy(next_reseaux)
         # plot_city(reseaux)
-        print(cost(reseaux))
-        result(ville,reseaux)
+    # stationary=0
+    # while stationary<1:
+    #     node=rd.randint(sum(distribution),nb_nodes-1)
+    #     delete(reseaux, node)
+    #     next_reseaux=evolve(reseaux,node)
+    #     stationary+=0.2*(2*(cost(reseaux)==cost(next_reseaux))-1)
+    #     reseaux=copy.deepcopy(next_reseaux)
+    #     # plot_city(reseaux)
+    #     print(cost(reseaux),cost(next_reseaux),stationary)
+    #     result(ville,reseaux)
     return reseaux
     
 R=find(reseaux)
+print(R)
+plot_city(R)
