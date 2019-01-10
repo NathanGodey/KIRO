@@ -7,10 +7,9 @@ import random as rd
 
 ville = "nice"
 
-
-def graph(liste):
-    plt.plot(range(len(liste)), liste)
-
+"""
+FONCTIONS DE PARSING
+"""
 
 def row_count_func(ville):
     with open(ville + "/distances.csv") as csv_file:
@@ -45,9 +44,19 @@ def parse_nodes(ville):
 
     return nodes[1:], distribution[1:]
 
-
+"""
+Matrice des distances
+"""
 distances = parse_dist(ville)
+
 nb_nodes = len(distances)
+
+"""
+On récupère les données sous la forme suivante :
+
+- nodes est la liste des noeuds représentés par leurs coordonnées
+- distribution est une liste de booléens indiquant si le i-ème noeud est une coordonnées
+"""
 nodes, distribution = parse_nodes(ville)
 
 
@@ -66,7 +75,9 @@ def result(ville, reseaux):
                     file.write(" " + str(node))
                 file.write("\n")
 
-
+"""
+Calcul du coût d'une architecture
+"""
 def cost(reseaux):
     c = 0
 
@@ -79,10 +90,17 @@ def cost(reseaux):
 
     return c
 
-
+"""
+Une architecture initiale composée des boucles composées uniquement des points de distribution
+"""
 def init_reseaux():
     return [[[i]] for i in range(sum(distribution))]
 
+
+"""
+On teste la validité d'une architecture en cours de construction (final=False)
+ou d'une architecture finale (final=True)
+"""
 
 def valid_reseaux(reseaux, final=False):
     valid = True
@@ -92,7 +110,7 @@ def valid_reseaux(reseaux, final=False):
             for k in c:
                 hist[k] += 1
     for i in hist:
-        if i > 1 or (final and i<1):
+        if i > 1 or (final and i < 1):
             valid = False
             break
     return valid
@@ -102,13 +120,24 @@ reseaux = init_reseaux()
 print(cost(reseaux))
 
 
+def copie(R1):
+    R2 = []
+    for reseau in R1:
+        R2 += [[]]
+        for chain in reseau:
+            R2[-1] += [[]]
+            for node in chain:
+                R2[-1][-1] += [node]
+    return R2
+
+
 def evolve(reseaux, node):
-    R = copy.deepcopy(reseaux)
-    optR = copy.deepcopy(R)
+    R = copie(reseaux)
+    optR = copie(R)
     m = float('inf')
 
     for i_r in range(len(reseaux)):
-        R = copy.deepcopy(reseaux)
+        R = copie(reseaux)
         for i in range(len(R[i_r])):
             if len(R[i_r][i]) <= 5:
                 for j in range(distribution[R[i_r][i][0]], len(R[i_r][i]) + 1):
@@ -116,8 +145,8 @@ def evolve(reseaux, node):
                     C = cost(R)
                     if C < m and valid_reseaux(R):
                         m = C
-                        optR = copy.deepcopy(R)
-                    R = copy.deepcopy(reseaux)
+                        optR = copie(R)
+                    R = copie(reseaux)
 
         if len(R[i_r]) <= 30:
             for j in range(len(R[i_r])):
@@ -125,8 +154,8 @@ def evolve(reseaux, node):
                 C = cost(R)
                 if C < m and valid_reseaux(R):
                     m = C
-                    optR = copy.deepcopy(R)
-                R = copy.deepcopy(reseaux)
+                    optR = copie(R)
+                R = copie(reseaux)
 
     for i_pd in range(sum(distribution)):
 
@@ -135,9 +164,9 @@ def evolve(reseaux, node):
         C = cost(R)
         if C < m and valid_reseaux(R):
             m = C
-            optR = copy.deepcopy(R)
-            R = copy.deepcopy(reseaux)
-        R = copy.deepcopy(reseaux)
+            optR = copie(R)
+            R = copie(reseaux)
+        R = copie(reseaux)
     return optR
 
 
@@ -150,43 +179,91 @@ def delete(reseaux, node):
 
 
 def mutate(permut):
-    size=rd.randint(2,15)
-    place=rd.randint(0,max(1,len(permut)-size))
-    perm_ind=list(np.random.permutation(range(place,place+size)))
-    patch=[permut[i] for i in perm_ind]
-    permut=permut[:place]+[permut[i] for i in perm_ind]+permut[place+size:]
+    size = rd.randint(2, 5)
+    place = rd.randint(0, max(1, len(permut) - size))
+    perm_ind = list(np.random.permutation(range(place, place + size)))
+    patch = [permut[i] for i in perm_ind]
+    permut = permut[:place] + [permut[i] for i in perm_ind] + permut[place + size:]
     return permut
 
-def best_mutation(reseaux,permut):
-    tries=[mutate(permut) for i in range(5)]
-    m=float('inf')
-    opt_t=[]
+
+def best_mutation(reseaux, permut):
+    tries = [permut] + [mutate(permut) for i in range(5)]
+    m = float('inf')
+    opt_t = []
     for t in tries:
-        temp_reseaux=copy.deepcopy(reseaux)
+        temp_reseaux = copie(reseaux)
         for node in t:
             delete(temp_reseaux, node)
             temp_reseaux = evolve(reseaux, node)
-        if cost(temp_reseaux)<m:
-            opt_t=t
+        if cost(temp_reseaux) < m:
+            opt_t = t
 
     return opt_t
 
 
 def find(reseaux_ini):
+    reseaux = copie(reseaux_ini)
+    nodes_permut = list(np.random.permutation(range(sum(distribution), nb_nodes)))
+    for node in nodes_permut:
+        reseaux = evolve(reseaux, node)
+    if valid_reseaux(reseaux, True):
+        result(ville, reseaux)
+    # print(cost(reseaux))
+    c_last = 0
+    while (cost(reseaux) != c_last):
+        c_last = cost(reseaux)
+        for node in nodes_permut:
+            delete(reseaux, node)
+            reseaux = evolve(reseaux, node)
+        if valid_reseaux(reseaux, True):
+            result(ville, reseaux)
+        # print(cost(reseaux))
+        nodes_permut = best_mutation(reseaux, nodes_permut)
+    if valid_reseaux(reseaux, True):
+        result(ville, reseaux)
+    return reseaux
+
+
+def find2(reseaux_ini):
+    reseaux = copie(reseaux_ini)
+    m = float('inf')
+    for i in range(1000):
+        nodes_permut = list(np.random.permutation(range(sum(distribution), nb_nodes)))
+        c = cost(reseaux) + 1
+        while cost(reseaux) != c:
+            c = cost(reseaux)
+
+            for node in nodes_permut:
+                delete(reseaux, node)
+                reseaux = evolve(reseaux, node)
+            nodes_permut = best_mutation(reseaux, nodes_permut)
+
+        C = cost(reseaux)
+        if C < m and valid_reseaux(reseaux):
+            m = C
+            opt_reseaux = copie(reseaux)
+            result(ville, opt_reseaux)
+            print(m)
+
+    return (opt_reseaux)
+
+
+def find3(reseaux_ini):
     reseaux = copy.deepcopy(reseaux_ini)
     m = float('inf')
 
-    for i in range(100):
-        reseaux = copy.deepcopy(reseaux_ini)
-        permuts = [[0, list(np.random.permutation([i for i in range(sum(distribution), nb_nodes)]))] for j in range(10)]
+    for i in range(200):
+        reseaux = copie(reseaux_ini)
+        permuts = [[0, list(np.random.permutation([i for i in range(sum(distribution), nb_nodes)]))] for j in range(30)]
         for k in range(5):
             for permut in permuts:
                 for node in permut[1]:
                     delete(reseaux, node)
                     reseaux = evolve(reseaux, node)
-                permut[0]=cost(reseaux)
+                permut[0] = cost(reseaux)
             permuts.sort(key=lambda x: x[0])
-            permuts=permuts[:len(permuts)//4]+[[0,mutate(p[1])] for p in permuts[:3*len(permuts)//4]]
+            permuts = permuts[:len(permuts) // 2] + [[0, mutate(p[1])] for p in permuts[:len(permuts) // 2]]
         nodes_permut = permuts[0][1]
         c = cost(reseaux) + 1
         while cost(reseaux) != c:
@@ -195,41 +272,29 @@ def find(reseaux_ini):
             for node in nodes_permut:
                 delete(reseaux, node)
                 reseaux = evolve(reseaux, node)
-            nodes_permut = best_mutation(reseaux,nodes_permut)
+            nodes_permut = mutate(nodes_permut)
 
         C = cost(reseaux)
         if C < m and valid_reseaux(reseaux):
             m = C
-            opt_reseaux = copy.deepcopy(reseaux)
+            opt_reseaux = copie(reseaux)
             result(ville, opt_reseaux)
             print(m)
 
     return (opt_reseaux)
 
 
-def find2(reseaux_ini):
-    opt_reseaux=reseaux_ini
-    temp_opt_reseaux=copy.deepcopy(opt_reseaux)
-    N=list(range(sum(distribution),nb_nodes))
-    while len(N)>0:
-        m=float('inf')
-        reseaux=copy.deepcopy(opt_reseaux)
-        for i in range(len(N)):
-            node=N[i]
-            reseaux=evolve(reseaux,node)
-            C=cost(reseaux)
-            if C<m:
-                temp_opt_reseaux=copy.deepcopy(reseaux)
-                m=C
-                opt_node_i=i
-        N=N[:opt_node_i]+N[opt_node_i+1:]
-        opt_reseaux=copy.deepcopy(temp_opt_reseaux)
+m = float('inf')
+i = 0
+while i < 100:
+    R = find(reseaux)
+    if cost(R) < m:
+        i = 0
+        opt_R = copie(R)
+        m = cost(R)
+        print(m)
+    i += 1
 
-    for i_node in range(sum(distribution),nb_nodes):
-        delete(opt_reseaux,node)
-        opt_reseaux=evolve(opt_reseaux,node)
-    return opt_reseaux
-
-R= find(reseaux)
-assert(valid_reseaux(R,True))
-print("coût final = ", cost(R))
+assert (valid_reseaux(opt_R, True))
+result(ville, opt_R)
+print("coût final = ", cost(opt_R))
